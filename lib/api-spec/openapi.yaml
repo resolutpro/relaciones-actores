@@ -3,20 +3,28 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: API specification for Mapa Corporativo
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: actors
+    description: Actor management
+  - name: relationships
+    description: Relationship management
+  - name: export
+    description: Data export
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +32,326 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current session
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeResponse"
+
+  /actors:
+    get:
+      operationId: listActors
+      tags: [actors]
+      summary: List all actors
+      responses:
+        "200":
+          description: List of actors
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Actor"
+    post:
+      operationId: createActor
+      tags: [actors]
+      summary: Create actor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateActorRequest"
+      responses:
+        "201":
+          description: Actor created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Actor"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /actors/{id}:
+    get:
+      operationId: getActor
+      tags: [actors]
+      summary: Get actor by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Actor found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Actor"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateActor
+      tags: [actors]
+      summary: Update actor
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateActorRequest"
+      responses:
+        "200":
+          description: Actor updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Actor"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteActor
+      tags: [actors]
+      summary: Delete actor
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /actors/{id}/relationships:
+    get:
+      operationId: getActorRelationships
+      tags: [actors]
+      summary: Get all related actors with scores
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Related actors with scores
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActorWithScore"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /relationships:
+    get:
+      operationId: listRelationships
+      tags: [relationships]
+      summary: List all relationships
+      responses:
+        "200":
+          description: List of relationships
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Relationship"
+    post:
+      operationId: createRelationship
+      tags: [relationships]
+      summary: Create relationship
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRelationshipRequest"
+      responses:
+        "201":
+          description: Relationship created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Relationship"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /relationships/{id}:
+    get:
+      operationId: getRelationship
+      tags: [relationships]
+      summary: Get relationship by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Relationship found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Relationship"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateRelationship
+      tags: [relationships]
+      summary: Update relationship
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateRelationshipRequest"
+      responses:
+        "200":
+          description: Relationship updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Relationship"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteRelationship
+      tags: [relationships]
+      summary: Delete relationship
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /export:
+    get:
+      operationId: exportData
+      tags: [export]
+      summary: Export all data as JSON
+      responses:
+        "200":
+          description: Export data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExportData"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +359,193 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+
+    OkResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+      required: [ok]
+
+    LoginRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+      required: [username, password]
+
+    LoginResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        username:
+          type: string
+      required: [ok, username]
+
+    MeResponse:
+      type: object
+      properties:
+        authenticated:
+          type: boolean
+        username:
+          type: string
+      required: [authenticated]
+
+    Actor:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        sector:
+          type: string
+          nullable: true
+        lat:
+          type: number
+          nullable: true
+        lon:
+          type: number
+          nullable: true
+        custom_fields:
+          type: object
+          additionalProperties:
+            type: string
+      required: [id, name, custom_fields]
+
+    CreateActorRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        sector:
+          type: string
+          nullable: true
+        lat:
+          type: number
+          nullable: true
+        lon:
+          type: number
+          nullable: true
+        custom_fields:
+          type: object
+          additionalProperties:
+            type: string
+      required: [name]
+
+    UpdateActorRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        sector:
+          type: string
+          nullable: true
+        lat:
+          type: number
+          nullable: true
+        lon:
+          type: number
+          nullable: true
+        custom_fields:
+          type: object
+          additionalProperties:
+            type: string
+
+    ActorWithScore:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        sector:
+          type: string
+          nullable: true
+        lat:
+          type: number
+          nullable: true
+        lon:
+          type: number
+          nullable: true
+        custom_fields:
+          type: object
+          additionalProperties:
+            type: string
+        relationship_id:
+          type: integer
+        score:
+          type: number
+        comments:
+          type: string
+          nullable: true
+      required: [id, name, custom_fields, relationship_id, score]
+
+    Relationship:
+      type: object
+      properties:
+        id:
+          type: integer
+        source_actor_id:
+          type: integer
+        target_actor_id:
+          type: integer
+        score:
+          type: number
+        comments:
+          type: string
+          nullable: true
+      required: [id, source_actor_id, target_actor_id, score]
+
+    CreateRelationshipRequest:
+      type: object
+      properties:
+        source_actor_id:
+          type: integer
+        target_actor_id:
+          type: integer
+        score:
+          type: number
+        comments:
+          type: string
+          nullable: true
+      required: [source_actor_id, target_actor_id, score]
+
+    UpdateRelationshipRequest:
+      type: object
+      properties:
+        source_actor_id:
+          type: integer
+        target_actor_id:
+          type: integer
+        score:
+          type: number
+        comments:
+          type: string
+          nullable: true
+
+    ExportData:
+      type: object
+      properties:
+        exportedAt:
+          type: string
+        actors:
+          type: array
+          items:
+            $ref: "#/components/schemas/Actor"
+        relationships:
+          type: array
+          items:
+            $ref: "#/components/schemas/Relationship"
+      required: [exportedAt, actors, relationships]

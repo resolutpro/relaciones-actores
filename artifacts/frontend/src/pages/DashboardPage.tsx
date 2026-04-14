@@ -138,15 +138,15 @@ export default function DashboardPage() {
           </span>
           <span className="flex items-center gap-1.5">
             <span className="inline-block w-3 h-3 rounded-full bg-[#e03131]" />
-            Score alto (≥ 0.75)
+            Puntuación alta (≥ 0.75)
           </span>
           <span className="flex items-center gap-1.5">
             <span className="inline-block w-3 h-3 rounded-full bg-[#f76707]" />
-            Score medio (≥ 0.4)
+            Puntuación media (≥ 0.4)
           </span>
           <span className="flex items-center gap-1.5">
             <span className="inline-block w-3 h-3 rounded-full bg-[#f59f00]" />
-            Score bajo
+            Puntuación baja
           </span>
           <span className="flex items-center gap-1.5">
             <span className="inline-block w-3 h-3 rounded-full bg-[#909090]" />
@@ -199,7 +199,7 @@ export default function DashboardPage() {
                       )}
                       {selectedId !== null && actor.id !== selectedId && (
                         <p className="mt-1">
-                          Score:{" "}
+                          Puntuación:{" "}
                           {score !== undefined
                             ? score.toFixed(2)
                             : "sin relación"}

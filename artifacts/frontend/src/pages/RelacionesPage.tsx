@@ -198,7 +198,7 @@ export default function RelacionesPage() {
 
           <div>
             <label className="block text-xs font-medium text-foreground mb-1">
-              Score de relación:{" "}
+              Puntuación de relación:{" "}
               <span className="font-bold text-primary">
                 {form.score.toFixed(2)}
               </span>
@@ -303,7 +303,7 @@ export default function RelacionesPage() {
                     Actor B
                   </th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Score
+                    Puntuación
                   </th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                     Comentarios

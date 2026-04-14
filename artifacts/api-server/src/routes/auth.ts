@@ -12,8 +12,13 @@ const router = Router();
 router.post("/login", (req: Request, res: Response) => {
   const { username, password } = req.body as { username?: string; password?: string };
 
-  const adminUser = process.env["ADMIN_USER"] || "admin";
-  const adminPass = process.env["ADMIN_PASS"] || "admin";
+  const adminUser = process.env["ADMIN_USER"];
+  const adminPass = process.env["ADMIN_PASS"];
+
+  if (!adminUser || !adminPass) {
+    res.status(500).json({ error: "Servidor no configurado correctamente" });
+    return;
+  }
 
   if (username === adminUser && password === adminPass) {
     req.session.authenticated = true;

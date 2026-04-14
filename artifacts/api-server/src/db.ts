@@ -1,4 +1,4 @@
-import { DatabaseSync } from "node:sqlite";
+import Database from "better-sqlite3";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -9,10 +9,10 @@ const DB_PATH =
   process.env["DATABASE_PATH"] ||
   path.resolve(__dirname, "../database.sqlite");
 
-export const db = new DatabaseSync(DB_PATH);
+export const db = new Database(DB_PATH);
 
-db.exec("PRAGMA journal_mode = WAL");
-db.exec("PRAGMA foreign_keys = ON");
+db.pragma("journal_mode = WAL");
+db.pragma("foreign_keys = ON");
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS actors (
@@ -58,24 +58,47 @@ export interface ActorWithScore extends Actor {
   comments: string | null;
 }
 
-function parseActor(row: Record<string, unknown>): Actor {
+interface ActorRow {
+  id: number;
+  name: string;
+  sector: string | null;
+  lat: number | null;
+  lon: number | null;
+  custom_fields: string;
+}
+
+interface RelationshipRow {
+  id: number;
+  source_actor_id: number;
+  target_actor_id: number;
+  score: number;
+  comments: string | null;
+}
+
+interface ActorWithScoreRow extends ActorRow {
+  relationship_id: number;
+  score: number;
+  comments: string | null;
+}
+
+function parseActor(row: ActorRow): Actor {
   return {
-    id: row["id"] as number,
-    name: row["name"] as string,
-    sector: (row["sector"] as string | null) ?? null,
-    lat: (row["lat"] as number | null) ?? null,
-    lon: (row["lon"] as number | null) ?? null,
-    custom_fields: JSON.parse((row["custom_fields"] as string) || "{}"),
+    id: row.id,
+    name: row.name,
+    sector: row.sector ?? null,
+    lat: row.lat ?? null,
+    lon: row.lon ?? null,
+    custom_fields: JSON.parse(row.custom_fields || "{}"),
   };
 }
 
 export const actorQueries = {
   findAll(): Actor[] {
-    const rows = db.prepare("SELECT * FROM actors ORDER BY name").all() as Record<string, unknown>[];
+    const rows = db.prepare("SELECT * FROM actors ORDER BY name").all() as ActorRow[];
     return rows.map(parseActor);
   },
   findById(id: number): Actor | null {
-    const row = db.prepare("SELECT * FROM actors WHERE id = ?").get(id) as Record<string, unknown> | undefined;
+    const row = db.prepare("SELECT * FROM actors WHERE id = ?").get(id) as ActorRow | undefined;
     return row ? parseActor(row) : null;
   },
   create(data: {
@@ -85,16 +108,15 @@ export const actorQueries = {
     lon?: number | null;
     custom_fields?: Record<string, string>;
   }): Actor {
-    const stmt = db.prepare(
-      "INSERT INTO actors (name, sector, lat, lon, custom_fields) VALUES (?, ?, ?, ?, ?)"
-    );
-    const result = stmt.run(
-      data.name,
-      data.sector ?? null,
-      data.lat ?? null,
-      data.lon ?? null,
-      JSON.stringify(data.custom_fields || {})
-    );
+    const result = db
+      .prepare("INSERT INTO actors (name, sector, lat, lon, custom_fields) VALUES (?, ?, ?, ?, ?)")
+      .run(
+        data.name,
+        data.sector ?? null,
+        data.lat ?? null,
+        data.lon ?? null,
+        JSON.stringify(data.custom_fields || {})
+      );
     return actorQueries.findById(Number(result.lastInsertRowid))!;
   },
   update(
@@ -130,10 +152,10 @@ export const actorQueries = {
 
 export const relationshipQueries = {
   findAll(): Relationship[] {
-    return db.prepare("SELECT * FROM relationships ORDER BY id").all() as unknown as Relationship[];
+    return db.prepare("SELECT * FROM relationships ORDER BY id").all() as RelationshipRow[];
   },
   findById(id: number): Relationship | null {
-    const row = db.prepare("SELECT * FROM relationships WHERE id = ?").get(id) as unknown as Relationship | undefined;
+    const row = db.prepare("SELECT * FROM relationships WHERE id = ?").get(id) as RelationshipRow | undefined;
     return row ?? null;
   },
   findByActor(actorId: number): ActorWithScore[] {
@@ -149,12 +171,12 @@ export const relationshipQueries = {
          )
          ORDER BY r.score DESC`
       )
-      .all(actorId, actorId) as Record<string, unknown>[];
+      .all(actorId, actorId) as ActorWithScoreRow[];
     return rows.map((row) => ({
       ...parseActor(row),
-      relationship_id: row["relationship_id"] as number,
-      score: row["score"] as number,
-      comments: (row["comments"] as string | null) ?? null,
+      relationship_id: row.relationship_id,
+      score: row.score,
+      comments: row.comments ?? null,
     }));
   },
   create(data: {
@@ -163,15 +185,16 @@ export const relationshipQueries = {
     score: number;
     comments?: string | null;
   }): Relationship {
-    const stmt = db.prepare(
-      "INSERT INTO relationships (source_actor_id, target_actor_id, score, comments) VALUES (?, ?, ?, ?)"
-    );
-    const result = stmt.run(
-      data.source_actor_id,
-      data.target_actor_id,
-      data.score,
-      data.comments ?? null
-    );
+    const result = db
+      .prepare(
+        "INSERT INTO relationships (source_actor_id, target_actor_id, score, comments) VALUES (?, ?, ?, ?)"
+      )
+      .run(
+        data.source_actor_id,
+        data.target_actor_id,
+        data.score,
+        data.comments ?? null
+      );
     return relationshipQueries.findById(Number(result.lastInsertRowid))!;
   },
   update(

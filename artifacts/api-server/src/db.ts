@@ -1,4 +1,4 @@
-import Database from "better-sqlite3";
+import { DatabaseSync } from "node:sqlite";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -9,10 +9,10 @@ const DB_PATH =
   process.env["DATABASE_PATH"] ||
   path.resolve(__dirname, "../database.sqlite");
 
-export const db = new Database(DB_PATH);
+export const db = new DatabaseSync(DB_PATH);
 
-db.pragma("journal_mode = WAL");
-db.pragma("foreign_keys = ON");
+db.exec("PRAGMA journal_mode = WAL");
+db.exec("PRAGMA foreign_keys = ON");
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS actors (
@@ -95,7 +95,7 @@ export const actorQueries = {
       data.lon ?? null,
       JSON.stringify(data.custom_fields || {})
     );
-    return actorQueries.findById(result.lastInsertRowid as number)!;
+    return actorQueries.findById(Number(result.lastInsertRowid))!;
   },
   update(
     id: number,
@@ -172,7 +172,7 @@ export const relationshipQueries = {
       data.score,
       data.comments ?? null
     );
-    return relationshipQueries.findById(result.lastInsertRowid as number)!;
+    return relationshipQueries.findById(Number(result.lastInsertRowid))!;
   },
   update(
     id: number,

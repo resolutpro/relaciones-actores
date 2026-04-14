@@ -6,6 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
+export interface CreateRelationshipRequest {
+  source_actor_id: number;
+  target_actor_id: number;
+  score: number;
+  comments?: string | null;
 }

@@ -1,15 +1,13 @@
 import { useState, useMemo } from "react";
-import {
-  MapContainer,
-  TileLayer,
-  CircleMarker,
-  Tooltip,
-} from "react-leaflet";
+import { MapContainer, TileLayer, CircleMarker, Tooltip } from "react-leaflet";
 import {
   useListActors,
   useGetActorRelationships,
 } from "@workspace/api-client-react";
-import { getListActorsQueryKey, getGetActorRelationshipsQueryKey } from "@workspace/api-client-react";
+import {
+  getListActorsQueryKey,
+  getGetActorRelationshipsQueryKey,
+} from "@workspace/api-client-react";
 
 interface Actor {
   id: number;
@@ -26,10 +24,24 @@ interface ActorWithScore extends Actor {
   comments?: string | null;
 }
 
+interface LocationItem {
+  name: string;
+  lat: number;
+  lon: number;
+}
+
+// Representa un punto individual en el mapa (una empresa puede tener varios)
+interface MapPoint extends Actor {
+  pointId: string;
+  locName: string;
+  pointLat: number;
+  pointLon: number;
+}
+
 function getMarkerColor(
   actor: Actor,
   selectedId: number | null,
-  relMap: Map<number, number>
+  relMap: Map<number, number>,
 ): string {
   if (actor.id === selectedId) return "#1971c2";
   if (selectedId === null) return "#4dabf7";
@@ -40,28 +52,37 @@ function getMarkerColor(
   return "#f59f00";
 }
 
-function applyJitter(actors: Actor[]): Array<Actor & { jLat: number; jLon: number }> {
-  const groups = new Map<string, Actor[]>();
-  for (const actor of actors) {
-    if (actor.lat == null || actor.lon == null) continue;
-    const key = `${actor.lat.toFixed(5)},${actor.lon.toFixed(5)}`;
+function applyJitter(
+  points: MapPoint[],
+): Array<MapPoint & { jLat: number; jLon: number }> {
+  const groups = new Map<string, MapPoint[]>();
+
+  for (const pt of points) {
+    // NUEVA LÍNEA DE SEGURIDAD: Si no hay coordenadas, lo ignoramos para no romper el mapa
+    if (pt.pointLat == null || pt.pointLon == null) continue;
+
+    const key = `${pt.pointLat.toFixed(5)},${pt.pointLon.toFixed(5)}`;
     if (!groups.has(key)) groups.set(key, []);
-    groups.get(key)!.push(actor);
+    groups.get(key)!.push(pt);
   }
 
-  return actors
-    .filter((a) => a.lat != null && a.lon != null)
-    .map((actor) => {
-      const key = `${actor.lat!.toFixed(5)},${actor.lon!.toFixed(5)}`;
+  return points
+    .filter((pt) => pt.pointLat != null && pt.pointLon != null) // Filtramos aquí también
+    .map((pt) => {
+      const key = `${pt.pointLat.toFixed(5)},${pt.pointLon.toFixed(5)}`;
       const group = groups.get(key)!;
-      if (group.length === 1) return { ...actor, jLat: actor.lat!, jLon: actor.lon! };
-      const idx = group.indexOf(actor);
+      // Si la ubicación es única, no aplicamos jitter (desplazamiento)
+      if (group.length === 1)
+        return { ...pt, jLat: pt.pointLat, jLon: pt.pointLon };
+
+      // Si hay ubicaciones superpuestas (misma lat/lon exacta), las separamos en círculo
+      const idx = group.indexOf(pt);
       const angle = (2 * Math.PI * idx) / group.length;
       const radius = 0.015;
       return {
-        ...actor,
-        jLat: actor.lat! + radius * Math.cos(angle),
-        jLon: actor.lon! + radius * Math.sin(angle),
+        ...pt,
+        jLat: pt.pointLat + radius * Math.cos(angle),
+        jLon: pt.pointLon + radius * Math.sin(angle),
       };
     });
 }
@@ -80,7 +101,7 @@ export default function DashboardPage() {
         enabled: selectedId !== null,
         queryKey: getGetActorRelationshipsQueryKey(selectedId ?? 0),
       },
-    }
+    },
   );
 
   const relMap = useMemo(() => {
@@ -93,7 +114,44 @@ export default function DashboardPage() {
     return map;
   }, [relationships, selectedId]);
 
-  const jitteredActors = useMemo(() => applyJitter(actors as Actor[]), [actors]);
+  // Extraemos TODAS las ubicaciones de todos los actores
+  const allPoints = useMemo(() => {
+    const points: MapPoint[] = [];
+    for (const actor of actors as Actor[]) {
+      let locations: LocationItem[] = [];
+
+      // Intentamos leer las multi-ubicaciones del JSON oculto
+      if (actor.custom_fields?.["_locationsData"]) {
+        try {
+          locations = JSON.parse(actor.custom_fields["_locationsData"]);
+        } catch (e) {
+          console.error("Error parseando _locationsData", e);
+        }
+      }
+
+      // Compatibilidad hacia atrás (si no hay JSON, usamos el lat/lon principal)
+      if (locations.length === 0 && actor.lat != null && actor.lon != null) {
+        locations = [
+          { name: "Ubicación principal", lat: actor.lat, lon: actor.lon },
+        ];
+      }
+
+      // Creamos un punto en el mapa por cada ubicación de la empresa
+      locations.forEach((loc, idx) => {
+        points.push({
+          ...actor,
+          pointId: `${actor.id}-${idx}`,
+          locName: loc.name,
+          pointLat: loc.lat,
+          pointLon: loc.lon,
+        });
+      });
+    }
+    return points;
+  }, [actors]);
+
+  // Aplicamos el jitter sobre todos los puntos extraídos
+  const jitteredPoints = useMemo(() => applyJitter(allPoints), [allPoints]);
 
   const selectedActor = (actors as Actor[]).find((a) => a.id === selectedId);
 
@@ -102,7 +160,9 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="bg-white border-b border-border px-6 py-4 flex items-center gap-4">
         <div className="flex-1">
-          <h1 className="text-lg font-semibold text-foreground">Mapa de Actores</h1>
+          <h1 className="text-lg font-semibold text-foreground">
+            Mapa de Actores
+          </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
             Visualiza los actores sobre el mapa de España
           </p>
@@ -172,14 +232,14 @@ export default function DashboardPage() {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             />
-            {jitteredActors.map((actor) => {
-              const color = getMarkerColor(actor as Actor, selectedId, relMap);
-              const isMain = actor.id === selectedId;
-              const score = relMap.get(actor.id);
+            {jitteredPoints.map((pt) => {
+              const color = getMarkerColor(pt as Actor, selectedId, relMap);
+              const isMain = pt.id === selectedId;
+              const score = relMap.get(pt.id);
               return (
                 <CircleMarker
-                  key={actor.id}
-                  center={[actor.jLat, actor.jLon]}
+                  key={pt.pointId}
+                  center={[pt.jLat, pt.jLon]}
                   radius={isMain ? 14 : 10}
                   pathOptions={{
                     fillColor: color,
@@ -188,16 +248,20 @@ export default function DashboardPage() {
                     weight: isMain ? 3 : 1.5,
                   }}
                   eventHandlers={{
-                    click: () => setSelectedId(actor.id === selectedId ? null : actor.id),
+                    click: () =>
+                      setSelectedId(pt.id === selectedId ? null : pt.id),
                   }}
                 >
                   <Tooltip direction="top" offset={[0, -8]}>
                     <div className="text-xs">
-                      <p className="font-semibold">{actor.name}</p>
-                      {actor.sector && (
-                        <p className="text-muted-foreground">{actor.sector}</p>
+                      <p className="font-semibold">{pt.name}</p>
+                      <p className="text-[10px] text-muted-foreground italic mb-1">
+                        {pt.locName}
+                      </p>
+                      {pt.sector && (
+                        <p className="text-muted-foreground">{pt.sector}</p>
                       )}
-                      {selectedId !== null && actor.id !== selectedId && (
+                      {selectedId !== null && pt.id !== selectedId && (
                         <p className="mt-1">
                           Puntuación:{" "}
                           {score !== undefined
@@ -214,7 +278,7 @@ export default function DashboardPage() {
         )}
 
         {/* Empty state */}
-        {!isLoading && jitteredActors.length === 0 && (
+        {!isLoading && jitteredPoints.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="bg-white/90 rounded-xl shadow-lg px-6 py-4 text-center">
               <p className="text-sm font-medium text-foreground">

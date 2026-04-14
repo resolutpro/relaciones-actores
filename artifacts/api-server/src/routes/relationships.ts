@@ -101,9 +101,33 @@ router.put("/:id", (req: Request, res: Response) => {
     }
   }
 
+  const existing = relationshipQueries.findById(id);
+  if (!existing) {
+    res.status(404).json({ error: "Relación no encontrada" });
+    return;
+  }
+
+  const newSourceId = body.source_actor_id != null ? Number(body.source_actor_id) : existing.source_actor_id;
+  const newTargetId = body.target_actor_id != null ? Number(body.target_actor_id) : existing.target_actor_id;
+
+  if (newSourceId === newTargetId) {
+    res.status(400).json({ error: "No se puede crear una relación de un actor consigo mismo" });
+    return;
+  }
+
+  if (body.source_actor_id != null && !actorQueries.findById(newSourceId)) {
+    res.status(404).json({ error: "Actor origen no encontrado" });
+    return;
+  }
+
+  if (body.target_actor_id != null && !actorQueries.findById(newTargetId)) {
+    res.status(404).json({ error: "Actor destino no encontrado" });
+    return;
+  }
+
   const updated = relationshipQueries.update(id, {
-    source_actor_id: body.source_actor_id ? Number(body.source_actor_id) : undefined,
-    target_actor_id: body.target_actor_id ? Number(body.target_actor_id) : undefined,
+    source_actor_id: body.source_actor_id != null ? newSourceId : undefined,
+    target_actor_id: body.target_actor_id != null ? newTargetId : undefined,
     score: body.score != null ? Number(body.score) : undefined,
     comments: body.comments !== undefined ? body.comments : undefined,
   });

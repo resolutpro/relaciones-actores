@@ -119,10 +119,10 @@ export default function GrafoPage() {
       const color = n.isMain
         ? "#1971c2"
         : n.score! >= 0.75
-        ? "#e03131"
-        : n.score! >= 0.4
-        ? "#f76707"
-        : "#f59f00";
+          ? "#e03131"
+          : n.score! >= 0.4
+            ? "#f76707"
+            : "#f59f00";
 
       ctx.beginPath();
       ctx.arc(n.x, n.y, r, 0, 2 * Math.PI);
@@ -132,30 +132,40 @@ export default function GrafoPage() {
       ctx.lineWidth = n.isMain ? 3 : 2;
       ctx.stroke();
 
-      ctx.fillStyle = "#fff";
-      ctx.font = `${n.isMain ? "bold " : ""}${n.isMain ? 11 : 9}px Inter, sans-serif`;
+      // --- CAMBIOS APLICADOS AQUÍ PARA LOS TEXTOS ---
+      ctx.font = `${n.isMain ? "bold " : ""}${n.isMain ? 12 : 10}px Inter, sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      const maxWidth = r * 2 + 8;
-      const label =
-        n.name.length > 18 ? n.name.slice(0, 15) + "..." : n.name;
-      ctx.fillText(label, n.x, n.y + r + 10, maxWidth);
+
+      const label = n.name.length > 20 ? n.name.slice(0, 18) + "..." : n.name;
+      const labelY = n.y + r + 12; // Un poco más separado del círculo
+      const maxWidth = r * 3;
+
+      // 1. Dibujar el "Halo" (borde blanco difuminado) para evitar el solapamiento visual
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
+      ctx.lineWidth = 4;
+      ctx.lineJoin = "round";
+      ctx.strokeText(label, n.x, labelY, maxWidth);
+
+      // 2. Dibujar el texto en color negro
+      ctx.fillStyle = "#000000";
+      ctx.fillText(label, n.x, labelY, maxWidth);
     },
-    []
+    [],
   );
 
   const linkCanvasObject = useCallback(
     (link: unknown, ctx: CanvasRenderingContext2D) => {
-      const l = link as { source: GraphNode & { x: number; y: number }; target: GraphNode & { x: number; y: number }; value: number };
+      const l = link as {
+        source: GraphNode & { x: number; y: number };
+        target: GraphNode & { x: number; y: number };
+        value: number;
+      };
       if (l.source?.x == null || l.target?.x == null) return;
 
       const score = l.value;
       const color =
-        score >= 0.75
-          ? "#e03131"
-          : score >= 0.4
-          ? "#f76707"
-          : "#f59f00";
+        score >= 0.75 ? "#e03131" : score >= 0.4 ? "#f76707" : "#f59f00";
 
       ctx.beginPath();
       ctx.moveTo(l.source.x, l.source.y);
@@ -173,7 +183,7 @@ export default function GrafoPage() {
       ctx.textAlign = "center";
       ctx.fillText(score.toFixed(2), mx, my - 4);
     },
-    []
+    [],
   );
 
   return (

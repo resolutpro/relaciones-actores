@@ -5,11 +5,24 @@ import {
   useUpdateActor,
   useDeleteActor,
 } from "@workspace/api-client-react";
-import {
-  getListActorsQueryKey,
-} from "@workspace/api-client-react";
+import { getListActorsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Edit2, X, Check, PlusCircle } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  Edit2,
+  X,
+  Check,
+  PlusCircle,
+  Search,
+  MapPin,
+} from "lucide-react";
+
+interface LocationItem {
+  name: string;
+  lat: number;
+  lon: number;
+}
 
 interface Actor {
   id: number;
@@ -28,8 +41,7 @@ interface CustomField {
 const emptyForm = {
   name: "",
   sector: "",
-  lat: "",
-  lon: "",
+  locations: [] as LocationItem[], // Array para múltiples ubicaciones
   customFields: [] as CustomField[],
 };
 
@@ -38,6 +50,50 @@ export default function ActoresPage() {
   const [form, setForm] = useState({ ...emptyForm });
   const [editId, setEditId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Nuevos estados para la búsqueda de ubicaciones
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearchingLoc, setIsSearchingLoc] = useState(false);
+
+  // Función para buscar en OpenStreetMap Nominatim
+  const handleSearchLocation = async () => {
+    if (!searchQuery.trim()) return;
+    setIsSearchingLoc(true);
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5`,
+      );
+      const data = await res.json();
+      setSearchResults(data);
+    } catch (err) {
+      console.error("Error buscando ubicación", err);
+    } finally {
+      setIsSearchingLoc(false);
+    }
+  };
+
+  const addLocation = (result: any) => {
+    setForm((prev) => ({
+      ...prev,
+      locations: [
+        ...prev.locations,
+        {
+          name: result.display_name,
+          lat: parseFloat(result.lat),
+          lon: parseFloat(result.lon),
+        },
+      ],
+    }));
+    setSearchQuery("");
+    setSearchResults([]);
+  };
+
+  const removeLocation = (idx: number) => {
+    setForm((prev) => ({
+      ...prev,
+      locations: prev.locations.filter((_, i) => i !== idx),
+    }));
+  };
 
   const { data: actors = [], isLoading } = useListActors({
     query: { queryKey: getListActorsQueryKey() },
@@ -87,11 +143,18 @@ export default function ActoresPage() {
     for (const f of form.customFields) {
       if (f.key.trim()) customFields[f.key.trim()] = f.value;
     }
+
+    // Guardamos la lista completa de ubicaciones en los campos personalizados para no perder información
+    if (form.locations.length > 0) {
+      customFields["_locationsData"] = JSON.stringify(form.locations);
+    }
+
     const payload = {
       name: form.name,
       sector: form.sector || null,
-      lat: form.lat ? parseFloat(form.lat) : null,
-      lon: form.lon ? parseFloat(form.lon) : null,
+      // Guardamos la primera ubicación como principal en la DB para el grafo radial y retrocompatibilidad
+      lat: form.locations.length > 0 ? form.locations[0].lat : null,
+      lon: form.locations.length > 0 ? form.locations[0].lon : null,
       custom_fields: customFields,
     };
 
@@ -105,15 +168,32 @@ export default function ActoresPage() {
   const handleEdit = (actor: Actor) => {
     setEditId(actor.id);
     setError(null);
-    const customFields = Object.entries(actor.custom_fields || {}).map(
-      ([key, value]) => ({ key, value })
+
+    // Recuperar custom fields y extraer ubicaciones guardadas
+    const actorCustomFields = { ...(actor.custom_fields || {}) };
+    let savedLocations: LocationItem[] = [];
+
+    if (actorCustomFields["_locationsData"]) {
+      try {
+        savedLocations = JSON.parse(actorCustomFields["_locationsData"]);
+        delete actorCustomFields["_locationsData"]; // Lo quitamos para no mostrarlo en la tabla estándar
+      } catch (e) {}
+    } else if (actor.lat && actor.lon) {
+      // Compatibilidad con actores antiguos que solo tienen 1 lat/lon
+      savedLocations = [
+        { name: "Ubicación Principal", lat: actor.lat, lon: actor.lon },
+      ];
+    }
+
+    const customFieldsList = Object.entries(actorCustomFields).map(
+      ([key, value]) => ({ key, value }),
     );
+
     setForm({
       name: actor.name,
       sector: actor.sector || "",
-      lat: actor.lat?.toString() || "",
-      lon: actor.lon?.toString() || "",
-      customFields,
+      locations: savedLocations,
+      customFields: customFieldsList,
     });
   };
 
@@ -137,11 +217,15 @@ export default function ActoresPage() {
     }));
   };
 
-  const updateCustomField = (idx: number, field: "key" | "value", val: string) => {
+  const updateCustomField = (
+    idx: number,
+    field: "key" | "value",
+    val: string,
+  ) => {
     setForm((prev) => ({
       ...prev,
       customFields: prev.customFields.map((f, i) =>
-        i === idx ? { ...f, [field]: val } : f
+        i === idx ? { ...f, [field]: val } : f,
       ),
     }));
   };
@@ -173,7 +257,9 @@ export default function ActoresPage() {
               <input
                 type="text"
                 value={form.name}
-                onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, name: e.target.value }))
+                }
                 className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                 placeholder="Nombre del actor"
                 required
@@ -186,36 +272,87 @@ export default function ActoresPage() {
               <input
                 type="text"
                 value={form.sector}
-                onChange={(e) => setForm((p) => ({ ...p, sector: e.target.value }))}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, sector: e.target.value }))
+                }
                 className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                 placeholder="Ej: Banca, Energía, Tecnología..."
               />
             </div>
-            <div>
-              <label className="block text-xs font-medium text-foreground mb-1">
-                Latitud
+
+            <div className="border border-border p-4 rounded-lg bg-muted/10">
+              <label className="block text-xs font-medium text-foreground mb-2">
+                Ubicaciones de la empresa
               </label>
-              <input
-                type="number"
-                step="any"
-                value={form.lat}
-                onChange={(e) => setForm((p) => ({ ...p, lat: e.target.value }))}
-                className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                placeholder="Ej: 40.416775"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-foreground mb-1">
-                Longitud
-              </label>
-              <input
-                type="number"
-                step="any"
-                value={form.lon}
-                onChange={(e) => setForm((p) => ({ ...p, lon: e.target.value }))}
-                className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                placeholder="Ej: -3.70379"
-              />
+
+              <div className="flex gap-2 mb-3">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" &&
+                    (e.preventDefault(), handleSearchLocation())
+                  }
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="flex-1 px-3 py-2 text-sm border border-input rounded-lg focus:ring-2 focus:ring-ring"
+                  placeholder="Buscar ciudad, calle, código postal..."
+                />
+                <button
+                  type="button"
+                  onClick={handleSearchLocation}
+                  className="px-3 py-2 bg-secondary text-secondary-foreground rounded-lg text-sm flex items-center gap-2 hover:bg-secondary/80"
+                >
+                  <Search size={16} /> {isSearchingLoc ? "..." : "Buscar"}
+                </button>
+              </div>
+
+              {/* Resultados de la búsqueda */}
+              {searchResults.length > 0 && (
+                <ul className="mb-4 bg-white border border-border rounded-lg shadow-sm max-h-40 overflow-y-auto">
+                  {searchResults.map((res, i) => (
+                    <li
+                      key={i}
+                      onClick={() => addLocation(res)}
+                      className="px-3 py-2 text-xs hover:bg-muted cursor-pointer border-b last:border-0 truncate"
+                    >
+                      {res.display_name}
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {/* Lista de Ubicaciones Añadidas */}
+              {form.locations.length > 0 ? (
+                <div className="space-y-2">
+                  {form.locations.map((loc, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-start justify-between bg-white border border-border p-2 rounded-md"
+                    >
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        <MapPin
+                          size={14}
+                          className="text-primary flex-shrink-0"
+                        />
+                        <span className="text-xs truncate" title={loc.name}>
+                          {loc.name}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeLocation(idx)}
+                        className="text-destructive hover:bg-destructive/10 p-1 rounded"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground italic">
+                  No hay ubicaciones registradas.
+                </p>
+              )}
             </div>
           </div>
 
@@ -230,14 +367,18 @@ export default function ActoresPage() {
                   <input
                     type="text"
                     value={cf.key}
-                    onChange={(e) => updateCustomField(idx, "key", e.target.value)}
+                    onChange={(e) =>
+                      updateCustomField(idx, "key", e.target.value)
+                    }
                     placeholder="Clave"
                     className="flex-1 px-3 py-2 text-sm border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <input
                     type="text"
                     value={cf.value}
-                    onChange={(e) => updateCustomField(idx, "value", e.target.value)}
+                    onChange={(e) =>
+                      updateCustomField(idx, "value", e.target.value)
+                    }
                     placeholder="Valor"
                     className="flex-1 px-3 py-2 text-sm border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                   />
@@ -349,19 +490,25 @@ export default function ActoresPage() {
                       {actor.name}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {actor.sector || <span className="italic text-xs">—</span>}
+                      {actor.sector || (
+                        <span className="italic text-xs">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground font-mono text-xs">
-                      {actor.lat != null && actor.lon != null
-                        ? `${actor.lat.toFixed(4)}, ${actor.lon.toFixed(4)}`
-                        : <span className="italic">—</span>}
+                      {actor.lat != null && actor.lon != null ? (
+                        `${actor.lat.toFixed(4)}, ${actor.lon.toFixed(4)}`
+                      ) : (
+                        <span className="italic">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground text-xs">
-                      {Object.keys(actor.custom_fields || {}).length > 0
-                        ? Object.entries(actor.custom_fields)
-                            .map(([k, v]) => `${k}: ${v}`)
-                            .join(", ")
-                        : <span className="italic">—</span>}
+                      {Object.keys(actor.custom_fields || {}).length > 0 ? (
+                        Object.entries(actor.custom_fields)
+                          .map(([k, v]) => `${k}: ${v}`)
+                          .join(", ")
+                      ) : (
+                        <span className="italic">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1 justify-end">
@@ -375,7 +522,7 @@ export default function ActoresPage() {
                         <button
                           onClick={() =>
                             confirm(
-                              `¿Eliminar "${actor.name}"? Esta acción también eliminará sus relaciones.`
+                              `¿Eliminar "${actor.name}"? Esta acción también eliminará sus relaciones.`,
                             ) && deleteMutation.mutate({ id: actor.id })
                           }
                           className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"

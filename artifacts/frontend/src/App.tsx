@@ -1,5 +1,6 @@
 import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
@@ -7,8 +8,9 @@ import LoginPage from "@/pages/LoginPage";
 import DashboardPage from "@/pages/DashboardPage";
 import ActoresPage from "@/pages/ActoresPage";
 import RelacionesPage from "@/pages/RelacionesPage";
-import GrafoPage from "@/pages/GrafoPage";
 import ExportarPage from "@/pages/ExportarPage";
+
+const GrafoPage = lazy(() => import("@/pages/GrafoPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,6 +20,14 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+function GrafoFallback() {
+  return (
+    <div className="flex h-full items-center justify-center bg-muted/30">
+      <p className="text-muted-foreground text-sm">Cargando grafo...</p>
+    </div>
+  );
+}
 
 function ProtectedRoutes() {
   const { authenticated, isLoading } = useAuth();
@@ -40,7 +50,11 @@ function ProtectedRoutes() {
         <Route path="/" component={DashboardPage} />
         <Route path="/actores" component={ActoresPage} />
         <Route path="/relaciones" component={RelacionesPage} />
-        <Route path="/grafo" component={GrafoPage} />
+        <Route path="/grafo">
+          <Suspense fallback={<GrafoFallback />}>
+            <GrafoPage />
+          </Suspense>
+        </Route>
         <Route path="/exportar" component={ExportarPage} />
         <Route>
           <Redirect to="/" />

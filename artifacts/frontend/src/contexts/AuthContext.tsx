@@ -1,7 +1,6 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { useGetMe, useLogin, useLogout } from "@workspace/api-client-react";
+import { createContext, useContext, ReactNode } from "react";
+import { useGetMe, useLogin, useLogout, getGetMeQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { getGetMeQueryKey } from "@workspace/api-client-react";
 
 interface AuthContextType {
   authenticated: boolean;
@@ -15,7 +14,6 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
-  const [authError, setAuthError] = useState<string | null>(null);
 
   const { data: meData, isLoading } = useGetMe({
     query: {
@@ -35,13 +33,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logoutMutation = useLogout({
     mutation: {
       onSuccess: () => {
+        queryClient.setQueryData(getGetMeQueryKey(), { authenticated: false });
         queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
       },
     },
   });
 
   const login = async (username: string, password: string) => {
-    setAuthError(null);
     await loginMutation.mutateAsync({ data: { username, password } });
   };
 

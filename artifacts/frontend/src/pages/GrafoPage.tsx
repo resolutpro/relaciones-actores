@@ -147,7 +147,7 @@ export default function GrafoPage() {
   const linkCanvasObject = useCallback(
     (link: unknown, ctx: CanvasRenderingContext2D) => {
       const l = link as { source: GraphNode & { x: number; y: number }; target: GraphNode & { x: number; y: number }; value: number };
-      if (!l.source?.x || !l.target?.x) return;
+      if (l.source?.x == null || l.target?.x == null) return;
 
       const score = l.value;
       const color =
@@ -249,7 +249,7 @@ export default function GrafoPage() {
               const n = node as GraphNode;
               return n.isMain
                 ? `${n.name} (Actor principal)`
-                : `${n.name} — Score: ${n.score?.toFixed(2)}`;
+                : `${n.name} — Puntuación: ${n.score?.toFixed(2)}`;
             }}
             d3AlphaDecay={0.02}
             d3VelocityDecay={0.4}
@@ -270,18 +270,18 @@ export default function GrafoPage() {
             </div>
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-[#e03131] inline-block" />
-              Score alto (≥ 0.75)
+              Puntuación alta (≥ 0.75)
             </div>
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-[#f76707] inline-block" />
-              Score medio (≥ 0.4)
+              Puntuación media (≥ 0.4)
             </div>
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-[#f59f00] inline-block" />
-              Score bajo
+              Puntuación baja
             </div>
             <p className="text-muted-foreground mt-2">
-              Más cerca = score más alto
+              Más cerca = puntuación más alta
             </p>
           </div>
         )}

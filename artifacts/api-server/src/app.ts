@@ -28,9 +28,18 @@ app.use(
   }),
 );
 
+const allowedOrigins = process.env["ALLOWED_ORIGINS"]
+  ? process.env["ALLOWED_ORIGINS"].split(",").map((s) => s.trim())
+  : [];
+
 app.use(
   cors({
-    origin: true,
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      if (process.env["NODE_ENV"] !== "production") return callback(null, true);
+      callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
   }),
 );
@@ -51,6 +60,7 @@ app.use(
     cookie: {
       secure: process.env["NODE_ENV"] === "production",
       httpOnly: true,
+      sameSite: "lax",
       maxAge: 24 * 60 * 60 * 1000,
     },
   }),

@@ -1,5 +1,6 @@
 import express, { type Express } from "express";
 import cors from "cors";
+import { randomBytes } from "crypto";
 import pinoHttp from "pino-http";
 import session from "express-session";
 import router from "./routes/index.js";
@@ -36,10 +37,11 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-const sessionSecret = process.env["SESSION_SECRET"];
-if (!sessionSecret) {
-  throw new Error("SESSION_SECRET environment variable is required");
-}
+const sessionSecret = process.env["SESSION_SECRET"] ?? (() => {
+  const generated = randomBytes(32).toString("hex");
+  logger.warn("SESSION_SECRET not set — using ephemeral session secret. Sessions will be lost on restart. Set SESSION_SECRET in production.");
+  return generated;
+})();
 
 app.use(
   session({

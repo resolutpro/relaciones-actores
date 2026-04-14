@@ -1,0 +1,84 @@
+Actúa como un Desarrollador Full-Stack Senior experto en React, Node.js, visualización de datos espaciales y de redes. Tu objetivo es crear una aplicación web SPA (Single Page Application) completa para mapear, gestionar y visualizar relaciones entre actores corporativos (empresas, asociaciones, personas).
+
+REGLA DE ORO (Sin Mock Data):
+Está ESTRICTAMENTE PROHIBIDO usar datos mockeados (harcodeados) en el frontend. El frontend debe arrancar vacío si la base de datos está vacía. Absolutamente todos los datos (actores, relaciones, coordenadas, campos personalizados) deben leerse y escribirse exclusivamente a través de la API conectada a la base de datos SQLite.
+
+Stack Tecnológico Requerido:
+
+Backend: Node.js con Express.
+
+Base de Datos: SQLite (archivo local database.sqlite). Usa sqlite3 o better-sqlite3.
+
+Frontend: React (con Vite) y React Router para la navegación.
+
+Estilos: Tailwind CSS.
+
+Mapas: react-leaflet (Leaflet) para el mapa de España.
+
+Visualización de Redes: react-force-graph o vis-network para el grafo de relaciones.
+
+Requisitos Funcionales de la Aplicación:
+
+1. Sistema de Autenticación (Login):
+
+Crea una pantalla de login sencilla.
+
+Las credenciales válidas deben leerse desde las variables de entorno (process.env.ADMIN_USER y process.env.ADMIN_PASS).
+
+Si no hay sesión, ninguna ruta debe ser accesible (protección de rutas).
+
+2. Estructura de la Base de Datos (SQLite):
+
+actors: id (PK), name (string), sector (string), lat (float), lon (float), custom_fields (texto/JSON para permitir variables dinámicas).
+
+relationships: id (PK), source_actor_id (FK), target_actor_id (FK), score (float, de 0 a 1), comments (text).
+
+3. Vistas del Frontend (Navegación):
+Debe haber un menú lateral/superior para navegar entre:
+
+A. Dashboard (Mapa):
+
+Mapa centrado en España usando Leaflet.
+
+Selector para elegir al "Actor Principal".
+
+Gestión de Superposición (Crucial): Como puede haber varios actores en la misma ubicación (misma lat/lon), debes implementar una solución visual para que los marcadores no se solapen y se oculten. Usa react-leaflet-cluster (MarkerCluster), o aplica un pequeño jitter (desplazamiento en espiral) en el frontend cuando detectes coordenadas idénticas.
+
+Lógica de Color: Al seleccionar un "Actor Principal", los demás marcadores cambian de color según el score de su relación directa con él (Rojo intenso = 1, Naranja = 0.5, Gris = sin relación).
+
+B. Gestión de Actores (Crear/Editar):
+
+Formulario para añadir actores (Nombre, Sector, Latitud, Longitud).
+
+Botón "Añadir campo personalizado" para agregar pares clave-valor que se guardarán en la columna JSON.
+
+Tabla debajo mostrando la lista real extraída de la DB.
+
+C. Gestión de Relaciones:
+
+Formulario con selectores de "Actor A" y "Actor B" (poblados desde la DB).
+
+Input tipo slider para el "Score" (0.0 a 1.0) y texto para comentarios.
+
+D. Visualización de Red (Grafo Radial):
+
+Lienzo interactivo. Selector para elegir un "Actor Principal".
+
+El actor principal va en el centro. Los actores relacionados orbitan alrededor acercándose al centro a medida que su score de relación sea más cercano a 1.
+
+E. Exportar Datos (Contexto para LLM):
+
+Botón que llame a un endpoint del backend para descargar un archivo export.json con la estructura unificada de actores y relaciones.
+
+Instrucciones de Ejecución para la IA:
+Trabaja paso a paso para evitar cortes:
+
+Paso 1: Crea servidor Node/Express, la BD SQLite con las tablas y configura Vite/React.
+
+Paso 2: Implementa la API completa y endpoints REST (GET/POST) sin datos falsos.
+
+Paso 3: Crea el Auth/Login y las vistas base de React (Formularios de Actores y Relaciones).
+
+Paso 4: Implementa el Mapa con Leaflet, resolviendo la superposición de marcadores y la lógica de colores.
+
+Paso 5: Implementa el Grafo de red y la exportación JSON.

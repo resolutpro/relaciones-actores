@@ -130,10 +130,10 @@ export const actorQueries = {
 
 export const relationshipQueries = {
   findAll(): Relationship[] {
-    return db.prepare("SELECT * FROM relationships ORDER BY id").all() as Relationship[];
+    return db.prepare("SELECT * FROM relationships ORDER BY id").all() as unknown as Relationship[];
   },
   findById(id: number): Relationship | null {
-    const row = db.prepare("SELECT * FROM relationships WHERE id = ?").get(id) as Relationship | undefined;
+    const row = db.prepare("SELECT * FROM relationships WHERE id = ?").get(id) as unknown as Relationship | undefined;
     return row ?? null;
   },
   findByActor(actorId: number): ActorWithScore[] {

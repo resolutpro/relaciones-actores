@@ -3,6 +3,11 @@ import { relationshipQueries, actorQueries } from "../db.js";
 
 const router = Router();
 
+function getParam(req: Request, name: string): string {
+  const val = req.params[name];
+  return Array.isArray(val) ? (val[0] ?? "") : (val ?? "");
+}
+
 router.get("/", (_req: Request, res: Response) => {
   const relationships = relationshipQueries.findAll();
   res.json(relationships);
@@ -61,7 +66,7 @@ router.post("/", (req: Request, res: Response) => {
 });
 
 router.get("/:id", (req: Request, res: Response) => {
-  const id = parseInt(req.params["id"]!, 10);
+  const id = parseInt(getParam(req, "id"), 10);
   if (isNaN(id)) {
     res.status(400).json({ error: "ID inválido" });
     return;
@@ -75,7 +80,7 @@ router.get("/:id", (req: Request, res: Response) => {
 });
 
 router.put("/:id", (req: Request, res: Response) => {
-  const id = parseInt(req.params["id"]!, 10);
+  const id = parseInt(getParam(req, "id"), 10);
   if (isNaN(id)) {
     res.status(400).json({ error: "ID inválido" });
     return;
@@ -111,7 +116,7 @@ router.put("/:id", (req: Request, res: Response) => {
 });
 
 router.delete("/:id", (req: Request, res: Response) => {
-  const id = parseInt(req.params["id"]!, 10);
+  const id = parseInt(getParam(req, "id"), 10);
   if (isNaN(id)) {
     res.status(400).json({ error: "ID inválido" });
     return;

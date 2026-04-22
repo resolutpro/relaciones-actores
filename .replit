@@ -37,5 +37,3 @@ channel = "stable-25_05"
 [userenv]
 
 [userenv.shared]
-ADMIN_USER = "admin"
-ADMIN_PASS = "admin"
